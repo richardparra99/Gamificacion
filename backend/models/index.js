@@ -5,6 +5,9 @@ const actividad = require("./actividades")(sequelize);
 const cumplimiento = require("./cumplimientos")(sequelize);
 const proyecto = require("./proyectos")(sequelize);
 const proyectoUsuario = require("./proyectoUsuarios")(sequelize);
+const movimientoPuntos = require("./movimientosPuntos")(sequelize);
+const usuarioLogro = require("./usuarioLogros")(sequelize);
+
 
 // Usuario creador de actividades
 usuario.hasMany(actividad, {
@@ -77,6 +80,30 @@ actividad.belongsTo(usuario, {
   as: "responsable",
 });
 
+
+// Usuario y movimientos de puntos
+usuario.hasMany(movimientoPuntos, {
+  foreignKey: "usuarioId",
+  as: "movimientosPuntos",
+});
+
+movimientoPuntos.belongsTo(usuario, {
+  foreignKey: "usuarioId",
+  as: "usuario",
+});
+
+// Usuario y logros desbloqueados
+usuario.hasMany(usuarioLogro, {
+  foreignKey: "usuarioId",
+  as: "logros",
+});
+
+usuarioLogro.belongsTo(usuario, {
+  foreignKey: "usuarioId",
+  as: "usuario",
+});
+
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -85,4 +112,6 @@ module.exports = {
   cumplimiento,
   proyecto,
   proyectoUsuario,
+  movimientoPuntos,
+  usuarioLogro
 };
