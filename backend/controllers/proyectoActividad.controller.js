@@ -224,7 +224,7 @@ exports.asignar = async (req, res) => {
   }
 };
 
-// COMPLETAR ACTIVIDAD ASIGNADA
+// COMPLETAR ACTIVIDAD ASIGNADA Y OTORGAR XP
 exports.completar = async (req, res) => {
   try {
     const proyectoId = Number(req.params.id);
@@ -242,6 +242,7 @@ exports.completar = async (req, res) => {
     }
 
     const resultado = await db.sequelize.transaction(async (transaction) => {
+      // Buscar la actividad y bloquearla durante la operación
       const actividad = await db.actividad.findOne({
         where: {
           id: actividadId,
@@ -274,7 +275,7 @@ exports.completar = async (req, res) => {
         };
       }
 
-      // Solo el responsable puede completarla
+      // Solo el responsable puede completar la actividad
       if (actividad.asignadoAId !== req.usuario.id) {
         return {
           status: 403,
@@ -282,6 +283,7 @@ exports.completar = async (req, res) => {
         };
       }
 
+      // Comprobar que el proyecto esté activo
       const proyecto = await db.proyecto.findByPk(proyectoId, { transaction });
 
       if (!proyecto || proyecto.estado !== "ACTIVO") {
@@ -291,6 +293,7 @@ exports.completar = async (req, res) => {
         };
       }
 
+      // Evitar completar dos veces una actividad única
       if (actividad.tipo === "UNICA" && actividad.estado === "COMPLETADA") {
         return {
           status: 409,
@@ -298,11 +301,12 @@ exports.completar = async (req, res) => {
         };
       }
 
-      // Fecha UTC de esta primera versión
+      // Obtener fecha actual en UTC
       const fecha = new Date().toISOString().slice(0, 10);
 
       let periodo = "UNICA";
 
+      // Determinar el período de las actividades recurrentes
       if (actividad.tipo === "RECURRENTE") {
         if (actividad.frecuencia === "DIARIA") {
           periodo = fecha;
@@ -322,7 +326,7 @@ exports.completar = async (req, res) => {
         }
       }
 
-      // Evitar cumplimientos duplicados
+      // Verificar que no exista un cumplimiento previo
       const existente = await db.cumplimiento.findOne({
         where: {
           actividadId,
@@ -338,6 +342,7 @@ exports.completar = async (req, res) => {
         };
       }
 
+      // Crear el cumplimiento
       const cumplimiento = await db.cumplimiento.create(
         {
           actividadId,
@@ -347,6 +352,7 @@ exports.completar = async (req, res) => {
         { transaction },
       );
 
+      // Actualizar estado de actividades únicas
       if (actividad.tipo === "UNICA") {
         await actividad.update(
           {
@@ -356,23 +362,42 @@ exports.completar = async (req, res) => {
         );
       }
 
+      // =====================================
+      // NUEVO: SISTEMA DE GAMIFICACIÓN
+      // =====================================
+
+      const recompensa = await otorgarPuntos({
+        usuarioId: req.usuario.id,
+        actividad,
+        cumplimiento,
+        transaction,
+      });
+
+      // =====================================
+
       return {
         status: 201,
         mensaje: "Actividad completada correctamente",
         cumplimiento,
+        recompensa,
       };
     });
 
     return res.status(resultado.status).json({
       mensaje: resultado.mensaje,
-      ...(resultado.cumplimiento
-        ? { cumplimiento: resultado.cumplimiento }
-        : {}),
+
+      ...(resultado.cumplimiento && {
+        cumplimiento: resultado.cumplimiento,
+      }),
+
+      ...(resultado.recompensa && {
+        recompensa: resultado.recompensa,
+      }),
     });
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(409).json({
-        mensaje: "Cumplimiento ya registrado",
+        mensaje: "Cumplimiento o recompensa ya registrada",
       });
     }
 
