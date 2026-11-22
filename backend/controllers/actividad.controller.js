@@ -24,7 +24,11 @@ const fechaActual = () => new Date().toISOString().slice(0, 10);
 
 const buscarPropia = (id, usuarioId) =>
   db.actividad.findOne({
-    where: { id, usuarioId },
+    where: {
+      id,
+      usuarioId,
+      proyectoId: null,
+    },
   });
 
 const manejarError = (res, error) => {
@@ -60,7 +64,10 @@ exports.crear = async (req, res) => {
 exports.listar = async (req, res) => {
   try {
     const actividades = await db.actividad.findAll({
-      where: { usuarioId: req.usuario.id },
+      where: {
+        usuarioId: req.usuario.id,
+        proyectoId: null,
+      },
       order: [["createdAt", "DESC"]],
       include: [
         {
