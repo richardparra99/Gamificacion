@@ -1,4 +1,5 @@
 const { Op } = require("sequelize");
+
 const db = require("../models");
 
 const {
@@ -8,8 +9,7 @@ const {
   calcularLogros,
 } = require("../utils/gamificacion.utils");
 
-// Registra la recompensa dentro de la misma transacción
-// que creó el cumplimiento.
+// OTORGAR PUNTOS POR UN CUMPLIMIENTO
 const otorgarPuntos = async ({
   usuarioId,
   actividad,
@@ -17,16 +17,41 @@ const otorgarPuntos = async ({
   transaction,
 }) => {
   if (!transaction) {
-    throw new Error("Se requiere una transacción");
+    throw new Error("Se requiere una transacción para otorgar puntos");
   }
 
+  // Calcular los puntos mediante una función pura
   const puntos = calcularPuntos(actividad.tipo, actividad.frecuencia);
 
   if (puntos <= 0) {
-    throw new Error("Tipo de actividad no válido");
+    throw new Error("Tipo o frecuencia de actividad no válido");
   }
 
-  // Evita registrar dos recompensas para un cumplimiento
+  // Bloquear la fila del usuario antes de registrar
+  // la recompensa para serializar sus movimientos.
+  const usuario = await db.usuario.findByPk(usuarioId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  if (!usuario) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  // La base de datos también protege cumplimientoId
+  // mediante una restricción UNIQUE.
+  const movimientoExistente = await db.movimientoPuntos.findOne({
+    where: {
+      cumplimientoId: cumplimiento.id,
+    },
+    transaction,
+  });
+
+  if (movimientoExistente) {
+    throw new Error("Este cumplimiento ya tiene puntos registrados");
+  }
+
+  // Registrar el movimiento
   const movimiento = await db.movimientoPuntos.create(
     {
       usuarioId,
@@ -37,27 +62,27 @@ const otorgarPuntos = async ({
     { transaction },
   );
 
-  // Bloqueamos la fila del usuario para serializar
-  // la evaluación de sus logros.
-  await db.usuario.findByPk(usuarioId, {
-    transaction,
-    lock: transaction.LOCK.UPDATE,
-  });
-
+  // Total de cumplimientos recompensados
   const totalCumplimientos = await db.movimientoPuntos.count({
-    where: { usuarioId },
+    where: {
+      usuarioId,
+    },
     transaction,
   });
 
+  // Determinar los logros correspondientes
   const logrosCorrespondientes = calcularLogros(totalCumplimientos);
 
   const codigos = logrosCorrespondientes.map((logro) => logro.codigo);
 
+  // Consultar logros que el usuario ya tiene
   const existentes = codigos.length
     ? await db.usuarioLogro.findAll({
         where: {
           usuarioId,
-          codigo: { [Op.in]: codigos },
+          codigo: {
+            [Op.in]: codigos,
+          },
         },
         transaction,
       })
@@ -65,10 +90,12 @@ const otorgarPuntos = async ({
 
   const codigosExistentes = new Set(existentes.map((logro) => logro.codigo));
 
+  // Filtrar únicamente logros nuevos
   const nuevosLogros = logrosCorrespondientes.filter(
     (logro) => !codigosExistentes.has(logro.codigo),
   );
 
+  // Guardar nuevos logros
   for (const logro of nuevosLogros) {
     await db.usuarioLogro.create(
       {
@@ -86,26 +113,31 @@ const otorgarPuntos = async ({
   };
 };
 
-// Consulta la experiencia del usuario
+// CONSULTAR PERFIL DE GAMIFICACIÓN
 const obtenerPerfilGamificacion = async (usuarioId) => {
   const [movimientos, logros] = await Promise.all([
     db.movimientoPuntos.findAll({
       where: { usuarioId },
       attributes: ["puntos"],
     }),
+
     db.usuarioLogro.findAll({
       where: { usuarioId },
-      order: [["createdAt", "ASC"]],
       attributes: ["codigo", "nombre", "createdAt"],
+      order: [["createdAt", "ASC"]],
     }),
   ]);
 
+  // Suma funcional de los puntos
   const experiencia = calcularExperiencia(movimientos);
+
+  // Nivel y progreso calculados mediante funciones puras
+  const progreso = calcularProgresoNivel(experiencia);
 
   return {
     usuarioId,
     experiencia,
-    ...calcularProgresoNivel(experiencia),
+    ...progreso,
     logros,
   };
 };
