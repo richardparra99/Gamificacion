@@ -1,5 +1,7 @@
 const db = require("../models");
 
+const { otorgarPuntos } = require("../services/gamificacion.service");
+
 // Verificar si un usuario pertenece al proyecto
 const verificarMiembro = async (proyectoId, usuarioId) => {
   return db.proyectoUsuario.findOne({
