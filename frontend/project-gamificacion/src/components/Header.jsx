@@ -25,7 +25,7 @@ const Header = () => {
           to="/dashboard"
           className="fw-bold"
         >
-          Gamificación
+          MiniJira
         </Navbar.Brand>
 
         <Navbar.Toggle aria-controls="menu" />
