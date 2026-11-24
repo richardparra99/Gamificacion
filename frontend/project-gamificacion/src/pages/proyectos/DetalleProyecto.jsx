@@ -22,6 +22,7 @@ import {
   Trash2,
   Pencil,
   Users,
+  ListTodo,
 } from "lucide-react";
 
 import {
@@ -209,6 +210,19 @@ const DetalleProyecto = () => {
           >
             {proyecto.estado}
           </Badge>
+
+          {/* Acceso a actividades para todos los integrantes */}
+          <div className="mt-3">
+            <Button
+              as={Link}
+              to={`/proyectos/${id}/actividades`}
+              variant="primary"
+              className="d-inline-flex align-items-center gap-2"
+            >
+              <ListTodo size={18} />
+              Ver actividades del proyecto
+            </Button>
+          </div>
         </Col>
 
         {esPropietario && (

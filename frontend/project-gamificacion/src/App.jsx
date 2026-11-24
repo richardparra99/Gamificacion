@@ -5,69 +5,41 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import { Container } from "react-bootstrap";
-
-// ==========================================
 // AUTENTICACIÓN
-// ==========================================
 import FormLogin from "./pages/auth/FormLogin";
 import FormRegister from "./pages/auth/FormRegister";
 
-// ==========================================
 // DASHBOARD
-// ==========================================
 import Dashboard from "./pages/dashboard/Dashboard";
 
-// ==========================================
 // ACTIVIDADES PERSONALES
-// ==========================================
 import ListaActividades from "./pages/actividades/ListaActividades";
 import FormActividad from "./pages/actividades/FormActividad";
 
-// ==========================================
 // PROYECTOS
-// ==========================================
 import ListaProyectos from "./pages/proyectos/ListaProyectos";
 import FormProyecto from "./pages/proyectos/FormProyecto";
 import DetalleProyecto from "./pages/proyectos/DetalleProyecto";
 
-// ==========================================
 // ACTIVIDADES COLABORATIVAS
-// ==========================================
 import ActividadesProyecto from "./pages/proyectos/ActividadesProyecto";
 
-// ==========================================
-// GAMIFICACIÓN - NUEVO
-// ==========================================
+// GAMIFICACIÓN
 import PerfilGamificacion from "./pages/gamificacion/PerfilGamificacion";
 import Ranking from "./pages/gamificacion/Ranking";
 
-// ==========================================
+// REPORTES - NUEVO
+import Reportes from "./pages/reportes/Reportes";
+import ReporteProyecto from "./pages/reportes/ReporteProyecto";
+
 // COMPONENTES COMPARTIDOS
-// ==========================================
 import PrivateRoute from "./components/PrivateRoute";
 import Layout from "./components/Layout";
 
-// ==========================================
-// PANTALLA PENDIENTE: REPORTES
-// ==========================================
-const PaginaPendiente = ({ titulo }) => (
-  <Container className="py-5">
-    <h2>{titulo}</h2>
-
-    <p className="text-muted">
-      Este módulo se implementará en la siguiente etapa.
-    </p>
-  </Container>
-);
-
-// ==========================================
-// COMPONENTE PRINCIPAL
-// ==========================================
 const App = () => {
   return (
     <Routes>
-      {/* RUTA INICIAL */}
+      {/* INICIO */}
       <Route
         path="/"
         element={<Navigate to="/dashboard" replace />}
@@ -84,7 +56,7 @@ const App = () => {
         element={<FormRegister />}
       />
 
-      {/* RUTAS PROTEGIDAS CON JWT */}
+      {/* RUTAS PROTEGIDAS */}
       <Route element={<PrivateRoute />}>
         <Route element={<Layout />}>
 
@@ -143,24 +115,26 @@ const App = () => {
             element={<PerfilGamificacion />}
           />
 
-          {/* RANKING */}
           <Route
             path="/ranking"
             element={<Ranking />}
           />
 
-          {/* REPORTES - PENDIENTE */}
+          {/* REPORTES */}
           <Route
             path="/reportes"
-            element={
-              <PaginaPendiente titulo="Reportes" />
-            }
+            element={<Reportes />}
+          />
+
+          <Route
+            path="/reportes/proyectos/:id"
+            element={<ReporteProyecto />}
           />
 
         </Route>
       </Route>
 
-      {/* RUTA DESCONOCIDA */}
+      {/* URL NO ENCONTRADA */}
       <Route
         path="*"
         element={<Navigate to="/dashboard" replace />}
