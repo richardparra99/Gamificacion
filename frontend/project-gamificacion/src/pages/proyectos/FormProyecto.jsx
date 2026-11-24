@@ -38,6 +38,44 @@ const FormProyecto = () => {
   const [error, setError] = useState("");
   const [autorizado, setAutorizado] = useState(!esEdicion);
 
+  // NUEVO: ESTADOS DE VALIDACIÓN
+  const [tocados, setTocados] = useState({});
+  const [intentadoEnviar, setIntentadoEnviar] = useState(false);
+
+  const errores = {
+    nombre:
+      datos.nombre.trim().length === 0
+        ? "El nombre del proyecto es obligatorio."
+        : datos.nombre.trim().length < 3
+          ? "El nombre debe tener al menos 3 caracteres."
+          : datos.nombre.trim().length > 150
+            ? "El nombre no puede superar 150 caracteres."
+            : "",
+
+    descripcion: "",
+    estado:
+      !["ACTIVO", "FINALIZADO"].includes(datos.estado)
+        ? "Selecciona un estado válido."
+        : "",
+  };
+
+  const mostrarValidacion = (campo) =>
+    Boolean(tocados[campo] || intentadoEnviar);
+
+  const esValido = (campo) =>
+    mostrarValidacion(campo) && !errores[campo];
+
+  const esInvalido = (campo) =>
+    mostrarValidacion(campo) && Boolean(errores[campo]);
+
+  const marcarTocado = (campo) => {
+    setTocados((anterior) => ({
+      ...anterior,
+      [campo]: true,
+    }));
+  };
+
+  // CARGAR PROYECTO PARA EDITAR
   useEffect(() => {
     if (!esEdicion) return;
 
@@ -54,7 +92,9 @@ const FormProyecto = () => {
           Number(usuario?.id)
         ) {
           setAutorizado(false);
-          setError("Solo el propietario puede editar este proyecto");
+          setError(
+            "Solo el propietario puede editar este proyecto"
+          );
           return;
         }
 
@@ -93,12 +133,19 @@ const FormProyecto = () => {
     }));
   };
 
+  // GUARDAR PROYECTO
   const onSubmit = async (event) => {
     event.preventDefault();
 
     if (!autorizado || guardando) return;
 
+    setIntentadoEnviar(true);
     setError("");
+
+    if (Object.values(errores).some(Boolean)) {
+      return;
+    }
+
     setGuardando(true);
 
     try {
@@ -179,7 +226,8 @@ const FormProyecto = () => {
                 <Alert variant="danger">{error}</Alert>
               )}
 
-              <Form onSubmit={onSubmit}>
+              <Form noValidate onSubmit={onSubmit}>
+                {/* NOMBRE DEL PROYECTO */}
                 <Form.Group className="mb-3">
                   <Form.Label>
                     Nombre del proyecto
@@ -189,13 +237,25 @@ const FormProyecto = () => {
                     name="nombre"
                     value={datos.nombre}
                     onChange={onChange}
+                    onBlur={() => marcarTocado("nombre")}
                     minLength={3}
                     maxLength={150}
                     required
                     placeholder="Ej. Sistema de Gamificación"
+                    isValid={esValido("nombre")}
+                    isInvalid={esInvalido("nombre")}
                   />
+
+                  <Form.Control.Feedback type="valid">
+                    Nombre válido.
+                  </Form.Control.Feedback>
+
+                  <Form.Control.Feedback type="invalid">
+                    {errores.nombre}
+                  </Form.Control.Feedback>
                 </Form.Group>
 
+                {/* DESCRIPCIÓN OPCIONAL */}
                 <Form.Group className="mb-3">
                   <Form.Label>Descripción</Form.Label>
 
@@ -205,10 +265,25 @@ const FormProyecto = () => {
                     name="descripcion"
                     value={datos.descripcion}
                     onChange={onChange}
+                    onBlur={() => marcarTocado("descripcion")}
                     placeholder="Describe el objetivo del proyecto"
+                    isValid={
+                      mostrarValidacion("descripcion") &&
+                      datos.descripcion.trim().length > 0
+                    }
+                    isInvalid={esInvalido("descripcion")}
                   />
+
+                  <Form.Text className="text-muted">
+                    Este campo es opcional.
+                  </Form.Text>
+
+                  <Form.Control.Feedback type="valid">
+                    Descripción ingresada.
+                  </Form.Control.Feedback>
                 </Form.Group>
 
+                {/* ESTADO EN EDICIÓN */}
                 {esEdicion && (
                   <Form.Group className="mb-4">
                     <Form.Label>Estado</Form.Label>
@@ -217,12 +292,23 @@ const FormProyecto = () => {
                       name="estado"
                       value={datos.estado}
                       onChange={onChange}
+                      onBlur={() => marcarTocado("estado")}
+                      isValid={esValido("estado")}
+                      isInvalid={esInvalido("estado")}
                     >
                       <option value="ACTIVO">Activo</option>
                       <option value="FINALIZADO">
                         Finalizado
                       </option>
                     </Form.Select>
+
+                    <Form.Control.Feedback type="valid">
+                      Estado válido.
+                    </Form.Control.Feedback>
+
+                    <Form.Control.Feedback type="invalid">
+                      {errores.estado}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 )}
 
@@ -240,9 +326,11 @@ const FormProyecto = () => {
 
                   <Button
                     as={Link}
-                    to={esEdicion
-                      ? `/proyectos/${id}`
-                      : "/proyectos"}
+                    to={
+                      esEdicion
+                        ? `/proyectos/${id}`
+                        : "/proyectos"
+                    }
                     variant="outline-secondary"
                   >
                     Cancelar

@@ -23,7 +23,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { obtenerProyecto } from "../../services/ProyectoService";
+import {
+  obtenerProyecto,
+} from "../../services/ProyectoService";
 
 import {
   obtenerActividadesProyecto,
@@ -52,6 +54,7 @@ const ActividadesProyecto = () => {
   const [actividades, setActividades] = useState([]);
 
   const [datos, setDatos] = useState(datosIniciales);
+
   const [mostrarFormulario, setMostrarFormulario] =
     useState(false);
 
@@ -62,6 +65,55 @@ const ActividadesProyecto = () => {
   const [mensaje, setMensaje] = useState("");
 
   const [actualizacion, setActualizacion] = useState(0);
+
+  // NUEVO: VALIDACIONES
+  const [tocados, setTocados] = useState({});
+  const [intentadoEnviar, setIntentadoEnviar] =
+    useState(false);
+
+  const errores = {
+    titulo:
+      datos.titulo.trim().length === 0
+        ? "El título de la actividad es obligatorio."
+        : datos.titulo.trim().length < 3
+          ? "El título debe tener al menos 3 caracteres."
+          : datos.titulo.trim().length > 150
+            ? "El título no puede superar 150 caracteres."
+            : "",
+
+    tipo:
+      !["UNICA", "RECURRENTE"].includes(datos.tipo)
+        ? "Selecciona un tipo válido."
+        : "",
+
+    frecuencia:
+      datos.tipo === "RECURRENTE" &&
+      !["DIARIA", "SEMANAL"].includes(datos.frecuencia)
+        ? "Selecciona una frecuencia."
+        : "",
+
+    fechaLimite:
+      datos.fechaLimite &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(datos.fechaLimite)
+        ? "Selecciona una fecha válida."
+        : "",
+  };
+
+  const mostrarValidacion = (campo) =>
+    Boolean(tocados[campo] || intentadoEnviar);
+
+  const esValido = (campo) =>
+    mostrarValidacion(campo) && !errores[campo];
+
+  const esInvalido = (campo) =>
+    mostrarValidacion(campo) && Boolean(errores[campo]);
+
+  const marcarTocado = (campo) => {
+    setTocados((anterior) => ({
+      ...anterior,
+      [campo]: true,
+    }));
+  };
 
   // CARGAR PROYECTO, MIEMBROS Y ACTIVIDADES
   useEffect(() => {
@@ -109,7 +161,8 @@ const ActividadesProyecto = () => {
     Number(proyecto.propietarioId) ===
       Number(usuario?.id);
 
-  const proyectoActivo = proyecto?.estado === "ACTIVO";
+  const proyectoActivo =
+    proyecto?.estado === "ACTIVO";
 
   const onChange = (event) => {
     const { name, value } = event.target;
@@ -129,16 +182,14 @@ const ActividadesProyecto = () => {
 
     if (procesando || !proyectoActivo) return;
 
-    if (
-      datos.tipo === "RECURRENTE" &&
-      !datos.frecuencia
-    ) {
-      setError("Selecciona una frecuencia");
+    setIntentadoEnviar(true);
+    setError("");
+
+    if (Object.values(errores).some(Boolean)) {
       return;
     }
 
     setProcesando(true);
-    setError("");
     setMensaje("");
 
     try {
@@ -158,6 +209,10 @@ const ActividadesProyecto = () => {
 
       setDatos({ ...datosIniciales });
       setMostrarFormulario(false);
+
+      // REINICIAR VALIDACIONES
+      setTocados({});
+      setIntentadoEnviar(false);
 
       setMensaje("Actividad creada correctamente");
       actualizar();
@@ -186,7 +241,10 @@ const ActividadesProyecto = () => {
         Number(usuarioId)
       );
 
-      setMensaje("Responsable asignado correctamente");
+      setMensaje(
+        "Responsable asignado correctamente"
+      );
+
       actualizar();
     } catch (err) {
       setError(
@@ -207,10 +265,11 @@ const ActividadesProyecto = () => {
     setMensaje("");
 
     try {
-      const respuesta = await completarActividadProyecto(
-        id,
-        actividad.id
-      );
+      const respuesta =
+        await completarActividadProyecto(
+          id,
+          actividad.id
+        );
 
       const puntos =
         respuesta.recompensa?.puntosGanados ?? 0;
@@ -255,6 +314,7 @@ const ActividadesProyecto = () => {
         <Alert variant="danger">
           {error || "Proyecto no encontrado"}
         </Alert>
+
         <Button as={Link} to="/proyectos">
           Volver a proyectos
         </Button>
@@ -277,6 +337,7 @@ const ActividadesProyecto = () => {
           <h2 className="fw-bold mb-1">
             Actividades del proyecto
           </h2>
+
           <p className="text-muted mb-0">
             {proyecto.nombre}
           </p>
@@ -298,7 +359,9 @@ const ActividadesProyecto = () => {
           {proyectoActivo && (
             <Button
               onClick={() =>
-                setMostrarFormulario((anterior) => !anterior)
+                setMostrarFormulario(
+                  (anterior) => !anterior
+                )
               }
             >
               <Plus size={17} className="me-2" />
@@ -328,83 +391,180 @@ const ActividadesProyecto = () => {
         </Alert>
       )}
 
+      {/* FORMULARIO PARA CREAR ACTIVIDADES */}
       {mostrarFormulario && proyectoActivo && (
         <Card className="border-0 shadow-sm mb-4">
           <Card.Body>
-            <h5 className="mb-3">Crear actividad</h5>
+            <h5 className="mb-3">
+              Crear actividad
+            </h5>
 
-            <Form onSubmit={onCrear}>
+            <Form noValidate onSubmit={onCrear}>
+              {/* TÍTULO */}
               <Form.Group className="mb-3">
                 <Form.Label>Título</Form.Label>
+
                 <Form.Control
                   name="titulo"
                   value={datos.titulo}
                   onChange={onChange}
+                  onBlur={() =>
+                    marcarTocado("titulo")
+                  }
                   required
                   minLength={3}
                   maxLength={150}
+                  isValid={esValido("titulo")}
+                  isInvalid={esInvalido("titulo")}
                 />
+
+                <Form.Control.Feedback type="valid">
+                  Título válido.
+                </Form.Control.Feedback>
+
+                <Form.Control.Feedback type="invalid">
+                  {errores.titulo}
+                </Form.Control.Feedback>
               </Form.Group>
 
+              {/* DESCRIPCIÓN */}
               <Form.Group className="mb-3">
-                <Form.Label>Descripción</Form.Label>
+                <Form.Label>
+                  Descripción
+                </Form.Label>
+
                 <Form.Control
                   name="descripcion"
                   as="textarea"
                   rows={2}
                   value={datos.descripcion}
                   onChange={onChange}
+                  onBlur={() =>
+                    marcarTocado("descripcion")
+                  }
+                  isValid={
+                    mostrarValidacion("descripcion") &&
+                    datos.descripcion.trim().length > 0
+                  }
                 />
+
+                <Form.Text className="text-muted">
+                  Campo opcional.
+                </Form.Text>
               </Form.Group>
 
               <Row>
+                {/* TIPO */}
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Tipo</Form.Label>
+
                     <Form.Select
                       name="tipo"
                       value={datos.tipo}
                       onChange={onChange}
+                      onBlur={() =>
+                        marcarTocado("tipo")
+                      }
+                      isValid={esValido("tipo")}
+                      isInvalid={esInvalido("tipo")}
                     >
-                      <option value="UNICA">Única</option>
+                      <option value="UNICA">
+                        Única
+                      </option>
+
                       <option value="RECURRENTE">
                         Recurrente
                       </option>
                     </Form.Select>
+
+                    <Form.Control.Feedback type="valid">
+                      Tipo válido.
+                    </Form.Control.Feedback>
+
+                    <Form.Control.Feedback type="invalid">
+                      {errores.tipo}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
 
+                {/* FRECUENCIA */}
                 {datos.tipo === "RECURRENTE" && (
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Frecuencia</Form.Label>
+                      <Form.Label>
+                        Frecuencia
+                      </Form.Label>
+
                       <Form.Select
                         name="frecuencia"
                         value={datos.frecuencia}
                         onChange={onChange}
+                        onBlur={() =>
+                          marcarTocado("frecuencia")
+                        }
                         required
+                        isValid={esValido("frecuencia")}
+                        isInvalid={esInvalido("frecuencia")}
                       >
                         <option value="">
                           Seleccionar
                         </option>
-                        <option value="DIARIA">Diaria</option>
+
+                        <option value="DIARIA">
+                          Diaria
+                        </option>
+
                         <option value="SEMANAL">
                           Semanal
                         </option>
                       </Form.Select>
+
+                      <Form.Control.Feedback type="valid">
+                        Frecuencia válida.
+                      </Form.Control.Feedback>
+
+                      <Form.Control.Feedback type="invalid">
+                        {errores.frecuencia}
+                      </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 )}
               </Row>
 
+              {/* FECHA LÍMITE */}
               <Form.Group className="mb-3">
-                <Form.Label>Fecha límite</Form.Label>
+                <Form.Label>
+                  Fecha límite
+                </Form.Label>
+
                 <Form.Control
                   type="date"
                   name="fechaLimite"
                   value={datos.fechaLimite}
                   onChange={onChange}
+                  onBlur={() =>
+                    marcarTocado("fechaLimite")
+                  }
+                  isValid={
+                    mostrarValidacion("fechaLimite") &&
+                    Boolean(datos.fechaLimite) &&
+                    !errores.fechaLimite
+                  }
+                  isInvalid={esInvalido("fechaLimite")}
                 />
+
+                <Form.Control.Feedback type="valid">
+                  Fecha válida.
+                </Form.Control.Feedback>
+
+                <Form.Control.Feedback type="invalid">
+                  {errores.fechaLimite}
+                </Form.Control.Feedback>
+
+                <Form.Text className="text-muted">
+                  Campo opcional.
+                </Form.Text>
               </Form.Group>
 
               <Button
@@ -420,7 +580,11 @@ const ActividadesProyecto = () => {
                 type="button"
                 variant="outline-secondary"
                 className="ms-2"
-                onClick={() => setMostrarFormulario(false)}
+                onClick={() => {
+                  setMostrarFormulario(false);
+                  setTocados({});
+                  setIntentadoEnviar(false);
+                }}
                 disabled={procesando}
               >
                 Cancelar
@@ -430,6 +594,7 @@ const ActividadesProyecto = () => {
         </Card>
       )}
 
+      {/* LISTA ORIGINAL DE ACTIVIDADES */}
       <Card className="border-0 shadow-sm">
         <Card.Body>
           <h5 className="mb-3">
@@ -441,7 +606,11 @@ const ActividadesProyecto = () => {
               Este proyecto todavía no tiene actividades.
             </p>
           ) : (
-            <Table responsive hover className="align-middle">
+            <Table
+              responsive
+              hover
+              className="align-middle"
+            >
               <thead>
                 <tr>
                   <th>Actividad</th>
@@ -465,7 +634,9 @@ const ActividadesProyecto = () => {
                   return (
                     <tr key={actividad.id}>
                       <td>
-                        <strong>{actividad.titulo}</strong>
+                        <strong>
+                          {actividad.titulo}
+                        </strong>
 
                         {actividad.descripcion && (
                           <div className="text-muted small">
@@ -493,7 +664,9 @@ const ActividadesProyecto = () => {
                           <Form.Select
                             size="sm"
                             aria-label={`Responsable de ${actividad.titulo}`}
-                            value={actividad.asignadoAId ?? ""}
+                            value={
+                              actividad.asignadoAId ?? ""
+                            }
                             disabled={procesando}
                             onChange={(event) =>
                               onAsignar(
@@ -516,7 +689,8 @@ const ActividadesProyecto = () => {
                             ))}
                           </Form.Select>
                         ) : (
-                          actividad.responsable?.nombreCompleto ||
+                          actividad.responsable
+                            ?.nombreCompleto ||
                           "Sin responsable"
                         )}
                       </td>
@@ -526,12 +700,16 @@ const ActividadesProyecto = () => {
                           <Badge bg="success">
                             Completada
                           </Badge>
-                        ) : actividad.tipo === "RECURRENTE" ? (
+                        ) : actividad.tipo ===
+                          "RECURRENTE" ? (
                           <Badge bg="info" text="dark">
                             Recurrente
                           </Badge>
                         ) : (
-                          <Badge bg="warning" text="dark">
+                          <Badge
+                            bg="warning"
+                            text="dark"
+                          >
                             Pendiente
                           </Badge>
                         )}

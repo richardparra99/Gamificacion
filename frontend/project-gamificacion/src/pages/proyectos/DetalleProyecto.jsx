@@ -1,6 +1,11 @@
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import { useSelector } from "react-redux";
 
 import {
@@ -35,12 +40,16 @@ import {
 const DetalleProyecto = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const usuario = useSelector((state) => state.auth.usuario);
+
+  const usuario = useSelector(
+    (state) => state.auth.usuario
+  );
 
   const [proyecto, setProyecto] = useState(null);
   const [miembros, setMiembros] = useState([]);
 
   const [email, setEmail] = useState("");
+
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
 
@@ -48,6 +57,30 @@ const DetalleProyecto = () => {
   const [mensaje, setMensaje] = useState("");
   const [actualizacion, setActualizacion] = useState(0);
 
+  // NUEVO: VALIDACIÓN DEL CORREO
+  const [emailTocado, setEmailTocado] = useState(false);
+  const [intentadoAgregar, setIntentadoAgregar] =
+    useState(false);
+
+  const errorEmail =
+    email.trim() === ""
+      ? "El correo electrónico es obligatorio."
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          email.trim()
+        )
+        ? "Ingresa un correo electrónico válido."
+        : "";
+
+  const mostrarValidacion =
+    emailTocado || intentadoAgregar;
+
+  const emailValido =
+    mostrarValidacion && !errorEmail;
+
+  const emailInvalido =
+    mostrarValidacion && Boolean(errorEmail);
+
+  // CARGAR PROYECTO
   useEffect(() => {
     let activo = true;
 
@@ -68,7 +101,9 @@ const DetalleProyecto = () => {
         }
       })
       .finally(() => {
-        if (activo) setCargando(false);
+        if (activo) {
+          setCargando(false);
+        }
       });
 
     return () => {
@@ -81,21 +116,36 @@ const DetalleProyecto = () => {
   };
 
   const esPropietario =
-    Number(proyecto?.propietarioId) === Number(usuario?.id);
+    Number(proyecto?.propietarioId) ===
+    Number(usuario?.id);
 
+  // AGREGAR INTEGRANTE
   const onAgregarMiembro = async (event) => {
     event.preventDefault();
+
     if (procesando || !esPropietario) return;
 
-    setProcesando(true);
+    setIntentadoAgregar(true);
     setError("");
     setMensaje("");
+
+    if (errorEmail) {
+      return;
+    }
+
+    setProcesando(true);
 
     try {
       await agregarMiembro(id, email.trim());
 
       setEmail("");
-      setMensaje("Miembro agregado correctamente");
+      setEmailTocado(false);
+      setIntentadoAgregar(false);
+
+      setMensaje(
+        "Miembro agregado correctamente"
+      );
+
       actualizar();
     } catch (err) {
       setError(
@@ -107,6 +157,7 @@ const DetalleProyecto = () => {
     }
   };
 
+  // RETIRAR INTEGRANTE
   const onEliminarMiembro = async (miembro) => {
     if (procesando || !esPropietario) return;
 
@@ -123,7 +174,10 @@ const DetalleProyecto = () => {
     try {
       await eliminarMiembro(id, miembro.id);
 
-      setMensaje("Miembro retirado correctamente");
+      setMensaje(
+        "Miembro retirado correctamente"
+      );
+
       actualizar();
     } catch (err) {
       setError(
@@ -135,6 +189,7 @@ const DetalleProyecto = () => {
     }
   };
 
+  // ELIMINAR PROYECTO
   const onEliminarProyecto = async () => {
     if (procesando || !esPropietario) return;
 
@@ -149,7 +204,10 @@ const DetalleProyecto = () => {
 
     try {
       await eliminarProyecto(id);
-      navigate("/proyectos", { replace: true });
+
+      navigate("/proyectos", {
+        replace: true,
+      });
     } catch (err) {
       setError(
         err.response?.data?.mensaje ||
@@ -164,7 +222,10 @@ const DetalleProyecto = () => {
     return (
       <Container className="py-5 text-center">
         <Spinner animation="border" />
-        <p className="mt-3">Cargando proyecto...</p>
+
+        <p className="mt-3">
+          Cargando proyecto...
+        </p>
       </Container>
     );
   }
@@ -195,10 +256,13 @@ const DetalleProyecto = () => {
 
       <Row className="g-3 mb-4">
         <Col>
-          <h2 className="fw-bold">{proyecto.nombre}</h2>
+          <h2 className="fw-bold">
+            {proyecto.nombre}
+          </h2>
 
           <p className="text-muted">
-            {proyecto.descripcion || "Sin descripción"}
+            {proyecto.descripcion ||
+              "Sin descripción"}
           </p>
 
           <Badge
@@ -211,7 +275,7 @@ const DetalleProyecto = () => {
             {proyecto.estado}
           </Badge>
 
-          {/* Acceso a actividades para todos los integrantes */}
+          {/* VER ACTIVIDADES PARA TODOS LOS MIEMBROS */}
           <div className="mt-3">
             <Button
               as={Link}
@@ -233,7 +297,10 @@ const DetalleProyecto = () => {
               variant="outline-primary"
               className="me-2"
             >
-              <Pencil size={16} className="me-1" />
+              <Pencil
+                size={16}
+                className="me-1"
+              />
               Editar
             </Button>
 
@@ -242,7 +309,10 @@ const DetalleProyecto = () => {
               disabled={procesando}
               onClick={onEliminarProyecto}
             >
-              <Trash2 size={16} className="me-1" />
+              <Trash2
+                size={16}
+                className="me-1"
+              />
               Eliminar
             </Button>
           </Col>
@@ -270,53 +340,72 @@ const DetalleProyecto = () => {
       )}
 
       <Row className="g-3">
+        {/* TABLA DE INTEGRANTES */}
         <Col lg={8}>
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <h5 className="mb-3">
-                <Users size={20} className="me-2" />
+                <Users
+                  size={20}
+                  className="me-2"
+                />
                 Integrantes ({miembros.length})
               </h5>
 
-              <Table responsive hover className="align-middle">
+              <Table
+                responsive
+                hover
+                className="align-middle"
+              >
                 <thead>
                   <tr>
                     <th>Nombre</th>
                     <th>Correo</th>
                     <th>Rol</th>
-                    {esPropietario && <th>Acciones</th>}
+
+                    {esPropietario && (
+                      <th>Acciones</th>
+                    )}
                   </tr>
                 </thead>
 
                 <tbody>
                   {miembros.map((miembro) => (
                     <tr key={miembro.id}>
-                      <td>{miembro.nombreCompleto}</td>
+                      <td>
+                        {miembro.nombreCompleto}
+                      </td>
+
                       <td>{miembro.email}</td>
+
                       <td>
                         <Badge
                           bg={
-                            miembro.ProyectoUsuario?.rol ===
-                            "ADMIN"
+                            miembro.ProyectoUsuario
+                              ?.rol === "ADMIN"
                               ? "primary"
                               : "secondary"
                           }
                         >
-                          {miembro.ProyectoUsuario?.rol ||
-                            "MIEMBRO"}
+                          {miembro.ProyectoUsuario
+                            ?.rol || "MIEMBRO"}
                         </Badge>
                       </td>
 
                       {esPropietario && (
                         <td>
                           {Number(miembro.id) !==
-                            Number(proyecto.propietarioId) && (
+                            Number(
+                              proyecto.propietarioId
+                            ) && (
                             <Button
                               size="sm"
                               variant="outline-danger"
                               disabled={procesando}
                               onClick={() =>
-                                onEliminarMiembro(miembro)
+                                onEliminarMiembro(
+                                  miembro
+                                )
                               }
                             >
                               <Trash2 size={16} />
@@ -339,11 +428,15 @@ const DetalleProyecto = () => {
         </Col>
 
         <Col lg={4}>
-          {esPropietario && proyecto.estado === "ACTIVO" ? (
+          {esPropietario &&
+          proyecto.estado === "ACTIVO" ? (
             <Card className="border-0 shadow-sm">
               <Card.Body>
                 <h5>
-                  <UserPlus size={20} className="me-2" />
+                  <UserPlus
+                    size={20}
+                    className="me-2"
+                  />
                   Agregar integrante
                 </h5>
 
@@ -352,7 +445,11 @@ const DetalleProyecto = () => {
                   previamente en el sistema.
                 </p>
 
-                <Form onSubmit={onAgregarMiembro}>
+                {/* FORMULARIO VALIDADO */}
+                <Form
+                  noValidate
+                  onSubmit={onAgregarMiembro}
+                >
                   <Form.Group className="mb-3">
                     <Form.Label>
                       Correo electrónico
@@ -365,8 +462,21 @@ const DetalleProyecto = () => {
                       onChange={(event) =>
                         setEmail(event.target.value)
                       }
+                      onBlur={() =>
+                        setEmailTocado(true)
+                      }
                       placeholder="usuario@ejemplo.com"
+                      isValid={emailValido}
+                      isInvalid={emailInvalido}
                     />
+
+                    <Form.Control.Feedback type="valid">
+                      Correo válido.
+                    </Form.Control.Feedback>
+
+                    <Form.Control.Feedback type="invalid">
+                      {errorEmail}
+                    </Form.Control.Feedback>
                   </Form.Group>
 
                   <Button
