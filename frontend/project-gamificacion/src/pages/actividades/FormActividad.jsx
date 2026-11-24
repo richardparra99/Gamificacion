@@ -32,7 +32,6 @@ import {
   crearActividadProyecto,
 } from "../../services/ProyectoActividadService";
 
-// DATOS INICIALES DEL FORMULARIO
 const datosIniciales = {
   titulo: "",
   descripcion: "",
@@ -45,20 +44,15 @@ const FormActividad = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Indica si estamos editando una actividad personal
   const esEdicion = Boolean(id);
 
-  // DATOS DEL FORMULARIO
   const [datos, setDatos] = useState(datosIniciales);
 
-  // DESTINO DE LA ACTIVIDAD
   const [destino, setDestino] = useState("PERSONAL");
   const [proyectoId, setProyectoId] = useState("");
 
-  // PROYECTOS DISPONIBLES
   const [proyectos, setProyectos] = useState([]);
 
-  // ESTADOS DE CARGA
   const [cargando, setCargando] = useState(esEdicion);
   const [cargandoProyectos, setCargandoProyectos] =
     useState(!esEdicion);
@@ -67,11 +61,76 @@ const FormActividad = () => {
   const [error, setError] = useState("");
   const [errorProyectos, setErrorProyectos] = useState("");
 
-  // ==========================================
-  // CARGAR PROYECTOS DEL USUARIO
-  // ==========================================
+  // NUEVO: VALIDACIÓN VISUAL
+  const [tocados, setTocados] = useState({});
+  const [intentadoEnviar, setIntentadoEnviar] =
+    useState(false);
+
+  const proyectosActivos = proyectos.filter(
+    (proyecto) => proyecto.estado === "ACTIVO"
+  );
+
+  const proyectoSeleccionado = proyectosActivos.find(
+    (proyecto) =>
+      String(proyecto.id) === String(proyectoId)
+  );
+
+  const errores = {
+    titulo:
+      datos.titulo.trim().length === 0
+        ? "El título es obligatorio."
+        : datos.titulo.trim().length < 3
+          ? "El título debe tener al menos 3 caracteres."
+          : datos.titulo.trim().length > 150
+            ? "El título no puede superar 150 caracteres."
+            : "",
+
+    descripcion: "",
+
+    tipo:
+      !["UNICA", "RECURRENTE"].includes(datos.tipo)
+        ? "Selecciona un tipo válido."
+        : "",
+
+    frecuencia:
+      !esEdicion &&
+      datos.tipo === "RECURRENTE" &&
+      !["DIARIA", "SEMANAL"].includes(datos.frecuencia)
+        ? "Selecciona la frecuencia de la actividad."
+        : "",
+
+    fechaLimite:
+      datos.fechaLimite &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(datos.fechaLimite)
+        ? "Selecciona una fecha válida."
+        : "",
+
+    proyectoId:
+      !esEdicion &&
+      destino === "PROYECTO" &&
+      !proyectoSeleccionado
+        ? "Debes seleccionar un proyecto activo."
+        : "",
+  };
+
+  const mostrarValidacion = (campo) =>
+    Boolean(tocados[campo] || intentadoEnviar);
+
+  const esValido = (campo) =>
+    mostrarValidacion(campo) && !errores[campo];
+
+  const esInvalido = (campo) =>
+    mostrarValidacion(campo) && Boolean(errores[campo]);
+
+  const marcarTocado = (campo) => {
+    setTocados((anterior) => ({
+      ...anterior,
+      [campo]: true,
+    }));
+  };
+
+  // CARGAR PROYECTOS
   useEffect(() => {
-    // En edición solo trabajamos con actividades personales.
     if (esEdicion) return;
 
     let activo = true;
@@ -92,9 +151,7 @@ const FormActividad = () => {
         );
       })
       .finally(() => {
-        if (activo) {
-          setCargandoProyectos(false);
-        }
+        if (activo) setCargandoProyectos(false);
       });
 
     return () => {
@@ -102,9 +159,7 @@ const FormActividad = () => {
     };
   }, [esEdicion]);
 
-  // ==========================================
   // CARGAR ACTIVIDAD PARA EDITAR
-  // ==========================================
   useEffect(() => {
     if (!esEdicion) return;
 
@@ -135,9 +190,7 @@ const FormActividad = () => {
         );
       })
       .finally(() => {
-        if (activo) {
-          setCargando(false);
-        }
+        if (activo) setCargando(false);
       });
 
     return () => {
@@ -145,117 +198,69 @@ const FormActividad = () => {
     };
   }, [id, esEdicion]);
 
-  // ==========================================
-  // MANEJAR CAMBIOS DEL FORMULARIO
-  // ==========================================
   const onChange = (event) => {
     const { name, value } = event.target;
 
     setDatos((anterior) => ({
       ...anterior,
       [name]: value,
-
       ...(name === "tipo" && value === "UNICA"
         ? { frecuencia: "" }
         : {}),
     }));
   };
 
-  // ==========================================
-  // SELECCIONAR EL DESTINO
-  // ==========================================
   const onCambiarDestino = (event) => {
-    const nuevoDestino = event.target.value;
-
-    setDestino(nuevoDestino);
+    setDestino(event.target.value);
     setProyectoId("");
     setError("");
+    setTocados((anterior) => ({
+      ...anterior,
+      proyectoId: false,
+    }));
   };
 
-  // ==========================================
   // GUARDAR ACTIVIDAD
-  // ==========================================
   const onSubmit = async (event) => {
     event.preventDefault();
 
     if (guardando) return;
 
+    setIntentadoEnviar(true);
     setError("");
 
-    const titulo = datos.titulo.trim();
-
-    if (titulo.length < 3) {
-      setError(
-        "El título debe tener al menos 3 caracteres."
-      );
-      return;
-    }
-
-    if (
-      !esEdicion &&
-      datos.tipo === "RECURRENTE" &&
-      !datos.frecuencia
-    ) {
-      setError(
-        "Debes seleccionar la frecuencia de la actividad."
-      );
-      return;
-    }
+    const camposValidar = [
+      "titulo",
+      "tipo",
+      "frecuencia",
+      "fechaLimite",
+      "proyectoId",
+    ];
 
     if (
-      !esEdicion &&
-      destino === "PROYECTO" &&
-      !proyectoId
+      camposValidar.some((campo) => Boolean(errores[campo]))
     ) {
-      setError(
-        "Debes seleccionar un proyecto."
-      );
       return;
-    }
-
-    // Comprobar que el proyecto esté activo
-    if (!esEdicion && destino === "PROYECTO") {
-      const proyectoSeleccionado = proyectos.find(
-        (proyecto) =>
-          String(proyecto.id) === String(proyectoId)
-      );
-
-      if (
-        !proyectoSeleccionado ||
-        proyectoSeleccionado.estado !== "ACTIVO"
-      ) {
-        setError(
-          "Selecciona un proyecto activo."
-        );
-        return;
-      }
     }
 
     setGuardando(true);
 
     try {
-      // CAMPOS COMPARTIDOS
       const payload = {
-        titulo,
-        descripcion:
-          datos.descripcion.trim() || null,
+        titulo: datos.titulo.trim(),
+        descripcion: datos.descripcion.trim() || null,
         fechaLimite: datos.fechaLimite || null,
       };
 
-      // ======================================
-      // CASO 1: EDITAR ACTIVIDAD PERSONAL
-      // ======================================
       if (esEdicion) {
         await actualizarActividad(id, payload);
 
         navigate("/actividades", {
           replace: true,
         });
-
         return;
       }
 
-      // CAMPOS ADICIONALES PARA CREAR
       const datosCreacion = {
         ...payload,
         tipo: datos.tipo,
@@ -265,40 +270,29 @@ const FormActividad = () => {
             : null,
       };
 
-      // ======================================
-      // CASO 2: CREAR ACTIVIDAD PERSONAL
-      // ======================================
       if (destino === "PERSONAL") {
         await crearActividad(datosCreacion);
 
         navigate("/actividades", {
           replace: true,
         });
-
         return;
       }
 
-      // ======================================
-      // CASO 3: CREAR ACTIVIDAD DE PROYECTO
-      // ======================================
       if (destino === "PROYECTO") {
         await crearActividadProyecto(
           proyectoId,
           datosCreacion
         );
 
-        // Ir directamente a las actividades
-        // del proyecto seleccionado
         navigate(
           `/proyectos/${proyectoId}/actividades`,
           { replace: true }
         );
       }
     } catch (err) {
-      const detalles = err.response?.data;
-
       setError(
-        detalles?.mensaje ||
+        err.response?.data?.mensaje ||
           "No se pudo guardar la actividad"
       );
     } finally {
@@ -306,24 +300,16 @@ const FormActividad = () => {
     }
   };
 
-  // ==========================================
-  // CARGANDO ACTIVIDAD
-  // ==========================================
   if (cargando) {
     return (
       <Container className="py-5 text-center">
         <Spinner animation="border" />
-
         <p className="mt-3">
           Cargando actividad...
         </p>
       </Container>
     );
   }
-
-  const proyectosActivos = proyectos.filter(
-    (proyecto) => proyecto.estado === "ACTIVO"
-  );
 
   const rutaCancelar =
     !esEdicion &&
@@ -332,9 +318,6 @@ const FormActividad = () => {
       ? `/proyectos/${proyectoId}/actividades`
       : "/actividades";
 
-  // ==========================================
-  // INTERFAZ
-  // ==========================================
   return (
     <Container className="py-4">
       <Row className="justify-content-center">
@@ -353,18 +336,12 @@ const FormActividad = () => {
                   : "Crea una actividad personal o vincúlala a un proyecto."}
               </p>
 
-              {/* ERRORES */}
               {error && (
-                <Alert variant="danger">
-                  {error}
-                </Alert>
+                <Alert variant="danger">{error}</Alert>
               )}
 
-              {/* FORMULARIO */}
-              <Form onSubmit={onSubmit}>
-                {/* ========================= */}
+              <Form noValidate onSubmit={onSubmit}>
                 {/* DESTINO DE LA ACTIVIDAD */}
-                {/* ========================= */}
                 {!esEdicion && (
                   <Card className="mb-4 bg-light border-0">
                     <Card.Body>
@@ -408,37 +385,51 @@ const FormActividad = () => {
                                   size="sm"
                                   className="me-2"
                                 />
-
                                 Cargando proyectos...
                               </div>
                             ) : (
-                              <Form.Select
-                                value={proyectoId}
-                                onChange={(event) =>
-                                  setProyectoId(
-                                    event.target.value
-                                  )
-                                }
-                                required
-                                disabled={
-                                  proyectosActivos.length === 0
-                                }
-                              >
-                                <option value="">
-                                  Selecciona un proyecto
-                                </option>
+                              <>
+                                <Form.Select
+                                  value={proyectoId}
+                                  onChange={(event) =>
+                                    setProyectoId(
+                                      event.target.value
+                                    )
+                                  }
+                                  onBlur={() =>
+                                    marcarTocado("proyectoId")
+                                  }
+                                  required
+                                  disabled={
+                                    proyectosActivos.length === 0
+                                  }
+                                  isValid={esValido("proyectoId")}
+                                  isInvalid={esInvalido("proyectoId")}
+                                >
+                                  <option value="">
+                                    Selecciona un proyecto
+                                  </option>
 
-                                {proyectosActivos.map(
-                                  (proyecto) => (
-                                    <option
-                                      key={proyecto.id}
-                                      value={proyecto.id}
-                                    >
-                                      {proyecto.nombre}
-                                    </option>
-                                  )
-                                )}
-                              </Form.Select>
+                                  {proyectosActivos.map(
+                                    (proyecto) => (
+                                      <option
+                                        key={proyecto.id}
+                                        value={proyecto.id}
+                                      >
+                                        {proyecto.nombre}
+                                      </option>
+                                    )
+                                  )}
+                                </Form.Select>
+
+                                <Form.Control.Feedback type="valid">
+                                  Proyecto seleccionado.
+                                </Form.Control.Feedback>
+
+                                <Form.Control.Feedback type="invalid">
+                                  {errores.proyectoId}
+                                </Form.Control.Feedback>
+                              </>
                             )}
                           </Form.Group>
 
@@ -477,9 +468,7 @@ const FormActividad = () => {
                   </Card>
                 )}
 
-                {/* ========================= */}
                 {/* TÍTULO */}
-                {/* ========================= */}
                 <Form.Group className="mb-3">
                   <Form.Label>
                     Título de la actividad
@@ -489,20 +478,27 @@ const FormActividad = () => {
                     name="titulo"
                     value={datos.titulo}
                     onChange={onChange}
+                    onBlur={() => marcarTocado("titulo")}
                     placeholder="Ej. Implementar autenticación"
                     required
                     minLength={3}
                     maxLength={150}
+                    isValid={esValido("titulo")}
+                    isInvalid={esInvalido("titulo")}
                   />
+
+                  <Form.Control.Feedback type="valid">
+                    Título válido.
+                  </Form.Control.Feedback>
+
+                  <Form.Control.Feedback type="invalid">
+                    {errores.titulo}
+                  </Form.Control.Feedback>
                 </Form.Group>
 
-                {/* ========================= */}
                 {/* DESCRIPCIÓN */}
-                {/* ========================= */}
                 <Form.Group className="mb-3">
-                  <Form.Label>
-                    Descripción
-                  </Form.Label>
+                  <Form.Label>Descripción</Form.Label>
 
                   <Form.Control
                     as="textarea"
@@ -510,13 +506,20 @@ const FormActividad = () => {
                     name="descripcion"
                     value={datos.descripcion}
                     onChange={onChange}
+                    onBlur={() => marcarTocado("descripcion")}
                     placeholder="Describe la actividad..."
+                    isValid={
+                      mostrarValidacion("descripcion") &&
+                      datos.descripcion.trim().length > 0
+                    }
                   />
+
+                  <Form.Text className="text-muted">
+                    Opcional.
+                  </Form.Text>
                 </Form.Group>
 
-                {/* ========================= */}
                 {/* TIPO Y FRECUENCIA */}
-                {/* ========================= */}
                 {!esEdicion && (
                   <Row>
                     <Col md={6}>
@@ -529,15 +532,23 @@ const FormActividad = () => {
                           name="tipo"
                           value={datos.tipo}
                           onChange={onChange}
+                          onBlur={() => marcarTocado("tipo")}
+                          isValid={esValido("tipo")}
+                          isInvalid={esInvalido("tipo")}
                         >
-                          <option value="UNICA">
-                            Única
-                          </option>
-
+                          <option value="UNICA">Única</option>
                           <option value="RECURRENTE">
                             Recurrente
                           </option>
                         </Form.Select>
+
+                        <Form.Control.Feedback type="valid">
+                          Tipo válido.
+                        </Form.Control.Feedback>
+
+                        <Form.Control.Feedback type="invalid">
+                          {errores.tipo}
+                        </Form.Control.Feedback>
                       </Form.Group>
                     </Col>
 
@@ -552,29 +563,38 @@ const FormActividad = () => {
                             name="frecuencia"
                             value={datos.frecuencia}
                             onChange={onChange}
+                            onBlur={() =>
+                              marcarTocado("frecuencia")
+                            }
                             required
+                            isValid={esValido("frecuencia")}
+                            isInvalid={esInvalido("frecuencia")}
                           >
                             <option value="">
                               Selecciona una frecuencia
                             </option>
-
                             <option value="DIARIA">
                               Diaria
                             </option>
-
                             <option value="SEMANAL">
                               Semanal
                             </option>
                           </Form.Select>
+
+                          <Form.Control.Feedback type="valid">
+                            Frecuencia válida.
+                          </Form.Control.Feedback>
+
+                          <Form.Control.Feedback type="invalid">
+                            {errores.frecuencia}
+                          </Form.Control.Feedback>
                         </Form.Group>
                       </Col>
                     )}
                   </Row>
                 )}
 
-                {/* ========================= */}
                 {/* FECHA LÍMITE */}
-                {/* ========================= */}
                 <Form.Group className="mb-4">
                   <Form.Label>
                     Fecha límite
@@ -585,30 +605,44 @@ const FormActividad = () => {
                     name="fechaLimite"
                     value={datos.fechaLimite}
                     onChange={onChange}
+                    onBlur={() => marcarTocado("fechaLimite")}
+                    isValid={
+                      mostrarValidacion("fechaLimite") &&
+                      Boolean(datos.fechaLimite) &&
+                      !errores.fechaLimite
+                    }
+                    isInvalid={esInvalido("fechaLimite")}
                   />
+
+                  <Form.Control.Feedback type="valid">
+                    Fecha válida.
+                  </Form.Control.Feedback>
+
+                  <Form.Control.Feedback type="invalid">
+                    {errores.fechaLimite}
+                  </Form.Control.Feedback>
+
+                  <Form.Text className="text-muted">
+                    Opcional.
+                  </Form.Text>
                 </Form.Group>
 
-                {/* ========================= */}
                 {/* INFORMACIÓN DEL DESTINO */}
-                {/* ========================= */}
                 {!esEdicion && destino === "PROYECTO" && (
                   <Alert variant="info">
                     <strong>Actividad colaborativa</strong>
 
                     <p className="mb-0 mt-1">
-                      Al crear esta actividad,
-                      quedará registrada dentro
-                      del proyecto seleccionado.
-                      Después podrás asignarla a
-                      un integrante desde la
+                      Al crear esta actividad, quedará
+                      registrada dentro del proyecto
+                      seleccionado. Después podrás
+                      asignarla a un integrante desde la
                       pantalla del proyecto.
                     </p>
                   </Alert>
                 )}
 
-                {/* ========================= */}
                 {/* BOTONES */}
-                {/* ========================= */}
                 <div className="d-flex flex-wrap gap-2">
                   <Button
                     type="submit"
@@ -616,8 +650,7 @@ const FormActividad = () => {
                       guardando ||
                       (!esEdicion &&
                         destino === "PROYECTO" &&
-                        (cargandoProyectos ||
-                          !proyectoId))
+                        cargandoProyectos)
                     }
                   >
                     {guardando

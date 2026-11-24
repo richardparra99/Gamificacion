@@ -14,7 +14,6 @@ const formatearUsuario = (usuario) => ({
   email: usuario.email,
 });
 
-// POST /api/auth/register
 exports.register = async (req, res) => {
   try {
     const { nombreCompleto, email, password } = req.body;
@@ -60,7 +59,6 @@ exports.register = async (req, res) => {
   }
 };
 
-// POST /api/auth/login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -100,7 +98,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// GET /api/auth/me
 exports.me = async (req, res) => {
   return res.status(200).json({
     usuario: formatearUsuario(req.usuario),
