@@ -5,52 +5,58 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import { Container } from "react-bootstrap";
-
-// Autenticación
+// AUTENTICACIÓN
 import FormLogin from "./pages/auth/FormLogin";
 import FormRegister from "./pages/auth/FormRegister";
 
-// Dashboard
+// DASHBOARD
 import Dashboard from "./pages/dashboard/Dashboard";
 
-// Actividades personales
+// ACTIVIDADES PERSONALES
 import ListaActividades from "./pages/actividades/ListaActividades";
 import FormActividad from "./pages/actividades/FormActividad";
 
-// Proyectos
+// PROYECTOS
 import ListaProyectos from "./pages/proyectos/ListaProyectos";
 import FormProyecto from "./pages/proyectos/FormProyecto";
 import DetalleProyecto from "./pages/proyectos/DetalleProyecto";
 
-// Componentes compartidos
+// ACTIVIDADES COLABORATIVAS
+import ActividadesProyecto from "./pages/proyectos/ActividadesProyecto";
+
+// GAMIFICACIÓN
+import PerfilGamificacion from "./pages/gamificacion/PerfilGamificacion";
+import Ranking from "./pages/gamificacion/Ranking";
+
+// REPORTES - NUEVO
+import Reportes from "./pages/reportes/Reportes";
+import ReporteProyecto from "./pages/reportes/ReporteProyecto";
+
+// COMPONENTES COMPARTIDOS
 import PrivateRoute from "./components/PrivateRoute";
 import Layout from "./components/Layout";
-
-// Pantallas que desarrollaremos después
-const PaginaPendiente = ({ titulo }) => (
-  <Container className="py-5">
-    <h2>{titulo}</h2>
-    <p className="text-muted">
-      Este módulo se implementará en la siguiente etapa.
-    </p>
-  </Container>
-);
 
 const App = () => {
   return (
     <Routes>
-      {/* RUTA INICIAL */}
+      {/* INICIO */}
       <Route
         path="/"
         element={<Navigate to="/dashboard" replace />}
       />
 
       {/* AUTENTICACIÓN */}
-      <Route path="/login" element={<FormLogin />} />
-      <Route path="/register" element={<FormRegister />} />
+      <Route
+        path="/login"
+        element={<FormLogin />}
+      />
 
-      {/* RUTAS PROTEGIDAS CON JWT */}
+      <Route
+        path="/register"
+        element={<FormRegister />}
+      />
+
+      {/* RUTAS PROTEGIDAS */}
       <Route element={<PrivateRoute />}>
         <Route element={<Layout />}>
 
@@ -97,33 +103,38 @@ const App = () => {
             element={<DetalleProyecto />}
           />
 
+          {/* ACTIVIDADES COLABORATIVAS */}
+          <Route
+            path="/proyectos/:id/actividades"
+            element={<ActividadesProyecto />}
+          />
+
           {/* GAMIFICACIÓN */}
           <Route
             path="/gamificacion"
-            element={
-              <PaginaPendiente titulo="Mis puntos y logros" />
-            }
+            element={<PerfilGamificacion />}
           />
 
           <Route
             path="/ranking"
-            element={
-              <PaginaPendiente titulo="Ranking" />
-            }
+            element={<Ranking />}
           />
 
           {/* REPORTES */}
           <Route
             path="/reportes"
-            element={
-              <PaginaPendiente titulo="Reportes" />
-            }
+            element={<Reportes />}
+          />
+
+          <Route
+            path="/reportes/proyectos/:id"
+            element={<ReporteProyecto />}
           />
 
         </Route>
       </Route>
 
-      {/* RUTA DESCONOCIDA */}
+      {/* URL NO ENCONTRADA */}
       <Route
         path="*"
         element={<Navigate to="/dashboard" replace />}
